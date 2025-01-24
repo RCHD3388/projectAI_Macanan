@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Macanan 8 vs 2</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .role-selector {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border: 2px solid #333;
+      z-index: 1000;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="role-selector" id="roleSelector">
+    <h2><i class="fas fa-paw"></i> Pilih Peran <i class="fas fa-users"></i></h2>
+    <button onclick="startGame('Uwong')">
+      <i class="fas fa-users"></i> Main sebagai Uwongs
+    </button>
+    <button onclick="startGame('Macan')">
+      <i class="fas fa-paw"></i> Main sebagai Macan
+    </button>
+  </div>
+
+  <div class="game-header" id="info">
+    <div class="team-info">
+      <div class="team-title">
+        <i class="fas fa-users"></i>
+        <h2>Macanan 8 UWONG 2 MACAN</h2>
+      </div>
+      <div class="team-members">
+        <div class="member-card">
+          <div class="member-name">Richard Rafer G</div>
+          <div class="member-nrp">222117056</div>
+        </div>
+        <div class="member-card">
+          <div class="member-name">Sean Laurence</div>
+          <div class="member-nrp">222117061</div>
+        </div>
+        <div class="member-card">
+          <div class="member-name">Michael Steven W</div>
+          <div class="member-nrp">222117046</div>
+        </div>
+      </div>
+    </div>
+  
+    <div class="game-status">
+      <div class="status-item">
+        <i class="fas fa-clock"></i>
+        <span class="status-label">Turn</span>
+        <span id="turn" class="status-value macan-turn">Macan</span>
+      </div>
+      <div class="status-item">
+        <i class="fas fa-shield-alt"></i>
+        <span class="status-label">Uwong</span>
+        <span id="uwong-pieces" class="status-value">8</span>
+      </div>
+      <div class="status-item">
+        <i class="fas fa-paw"></i>
+        <span class="status-label">Macan</span>
+        <span id="macan-pieces" class="status-value">0</span>
+      </div>
+    </div>
+  </div>
+  
+  <div class="network" id="network"></div>
+  <script>
+    const network = document.getElementById('network');
+    const turnIndicator = document.getElementById('turn');
+    const uwongPiecesIndicator = document.getElementById('uwong-pieces');
+    const macanPiecesIndicator = document.getElementById('macan-pieces');
+
+    // Variabel baru untuk mode permainan
+    let playerRole = null;
+    let aiRole = null;
+    let isAITurn = false;
+    const CENTER_NODE = 12;
+
+    const nodes = [
+      { x: 150, y: 50 }, { x: 250, y: 50 }, { x: 350, y: 50 }, { x: 450, y: 50 }, { x: 550, y: 50 },
+      { x: 150, y: 150 }, { x: 250, y: 150 }, { x: 350, y: 150 }, { x: 450, y: 150 }, { x: 550, y: 150 },
+      { x: 150, y: 250 }, { x: 250, y: 250 }, { x: 350, y: 250 }, { x: 450, y: 250 }, { x: 550, y: 250 },
+      { x: 150, y: 350 }, { x: 250, y: 350 }, { x: 350, y: 350 }, { x: 450, y: 350 }, { x: 550, y: 350 },
+      { x: 150, y: 450 }, { x: 250, y: 450 }, { x: 350, y: 450 }, { x: 450, y: 450 }, { x: 550, y: 450 },
+      { x: 50, y: 150 }, { x: 50, y: 250 }, { x: 50, y: 350 },
+      { x: -50, y: 50 }, { x: -50, y: 250 }, { x: -50, y: 450 },
+      { x: 650, y: 150 }, { x: 650, y: 250 }, { x: 650, y: 350 },
+      { x: 750, y: 50 }, { x: 750, y: 250 }, { x: 750, y: 450 },
+    ];
+
+    const connections = [
+      [0, 1], [1, 2], [2, 3], [3, 4],
+      [5, 6], [6, 7], [7, 8], [8, 9],
+      [10, 11], [11, 12], [12, 13], [13, 14],
+      [15, 16], [16, 17], [17, 18], [18, 19],
+      [20, 21], [21, 22], [22, 23], [23, 24],
+      [0, 5], [5, 10], [10, 15], [15, 20],
+      [1, 6], [6, 11], [11, 16], [16, 21],
+      [2, 7], [7, 12], [12, 17], [17, 22],
+      [3, 8], [8, 13], [13, 18], [18, 23],
+      [4, 9], [9, 14], [14, 19], [19, 24],
+      [0, 6], [6, 12], [12, 18], [18, 24],
+      [16, 20], [12, 16], [8, 12], [4, 8],
+      [2, 6], [2, 8],
+      [6, 10], [8, 14],
+      [10, 16], [14, 18],
+      [16, 22], [18, 22],
+      [10, 25], [10, 26], [10, 27],
+      [25, 28], [26, 29], [27, 30],
+      [25, 26], [26, 27],
+      [28, 29], [29, 30],
+      [14, 31], [14, 32], [14, 33],
+      [31, 34], [32, 35], [33, 36],
+      [31, 32], [32, 33],
+      [34, 35], [35, 36]
+    ];
+
+    let gamePhase = 'macan_place';
+    let turn = 'Macan';
+    let uwongPiecesRemaining = 8;
+    let macanPiecesRemaining = 2;
+    let macanPositions = [];
+    let boardState = Array(nodes.length).fill(null);
+    let selectedPiece = null;
+
+    // Membuat adjacency list
+    const adjacencyList = nodes.map(() => []);
+    connections.forEach(([from, to]) => {
+      adjacencyList[from].push(to);
+      adjacencyList[to].push(from);
+    });
+
+    // Fungsi awal permainan
+    function startGame(role) {
+      playerRole = role;
+      aiRole = role === 'Uwong' ? 'Macan' : 'Uwong';
+      document.getElementById('roleSelector').style.display = 'none';
+      document.getElementById('info').style.display = 'block';
+
+      if (aiRole === 'Macan') {
+        placeMacanPieces();
+        gamePhase = 'uwong_place';
+        turn = 'Uwong';
+      } else {
+        gamePhase = 'macan_place';
+        turn = 'Macan';
+      }
+
+      updateIndicators();
+    }
+
+    function placeMacanPieces() {
+      let bestPosition = null;
+      let bestScore = -Infinity;
+
+      // Evaluate all possible positions for placing the Macan piece
+      for (let index = 0; index < boardState.length; index++) {
+        if (boardState[index] === null) {
+          // Temporarily place the Macan piece
+          boardState[index] = 'Macan';
+          const score = AI.heuristic(boardState); // Use the heuristic to evaluate the position
+
+          // Check if this position is better than the current best
+          if (score > bestScore) {
+            bestScore = score;
+            bestPosition = index;
+          }
+
+          // Remove the temporary placement
+          boardState[index] = null;
+        }
+      }
+
+      // Place the Macan piece in the best position found
+      if (bestPosition !== null) {
+        macanPiecesRemaining--;
+        boardState[bestPosition] = 'Macan';
+        macanPositions.push(bestPosition);
+        const node = document.querySelectorAll('.node')[bestPosition];
+        node.classList.remove('node-default');
+        node.classList.add('node-macan', 'node-size30');
+      }
+    }
+
+    // ==================== AI Logic with Side-Branch Evaluation (SBE) ====================
+    class AI {
+      static getBestMove(boardState, depth, isMaximizingPlayer, currentRole) {
+        let result = this.minimax(boardState, depth, -Infinity, Infinity, isMaximizingPlayer, currentRole);
+        console.log(result)
+        return result;
+      }
+
+      static heuristic(boardState) {
+        const CENTER_INDEX = 12;
+
+        // Hitung komponen status permainan
+        let uwongCount = boardState.filter(p => p === 'Uwong').length;
+        let macanPositions = boardState.reduce((acc, p, i) => p === 'Macan' ? [...acc, i] : acc, []);
+
+        // 1. Perbedaan pion yang tertangkap
+        const capturedUwong = uwongCount;
+
+        // 2. Mobilitas Macan
+        let macanMobility = macanPositions.reduce((sum, index) => {
+          const moves = this.getAllPossibleMovesForHeuristic(boardState, index);
+          return sum + (moves.normalMoves.length * 10) + (moves.jumpMoves.length * 10);
+        }, 0);
+
+        let macanJumpMobility = macanPositions.reduce((sum, index) => {
+          const moves = this.getAllPossibleMovesForHeuristic(boardState, index);
+          moves.jumpMoves.forEach(move => {
+            sum += move.path.length * 5
+          })
+          return sum;
+        }, 0)
+
+        // 3. Mobilitas Uwong
+        let uwongMobility = boardState.reduce((sum, piece, index) => {
+          if (piece === 'Uwong') {
+            return sum + adjacencyList[index].filter(n => boardState[n] === null).length;
+          }
+          return sum;
+        }, 0);
+
+        // 4. Sentralitas posisi Macan
+        const center = nodes[CENTER_INDEX];
+        let centrality = macanPositions.reduce((sum, index) => {
+          const node = nodes[index];
+          const dx = node.x - center.x;
+          const dy = node.y - center.y;
+          return sum + 1 / (Math.sqrt(dx * dx + dy * dy) + 1);
+        }, 0);
+
+        // 5. Macan yang terjebak
+        let trappedMacans = macanPositions.filter(index => {
+          const moves = this.getAllPossibleMovesForHeuristic(boardState, index);
+          return moves.normalMoves.length + moves.jumpMoves.length === 0;
+        }).length;
+
+        // 6. Faktor pengepungan
+        let surrounding = macanPositions.reduce((sum, index) => {
+          return sum + adjacencyList[index].filter(n => boardState[n] === 'Uwong').length;
+        }, 0);
+
+        // Bobot heuristik (dapat disesuaikan)
+        const WEIGHTS = {
+          captured: -150,    // Nilai tinggi untuk setiap Uwong yang tertangkap
+          macanMob: 100,     // Mobilitas Macan penting untuk serangan
+          macanJumpMob: 300, // Mobilitas Macan penting untuk serangan
+          uwongMob: -10,    // Mobilitas Uwong perlu dibatasi
+          centrality: 30,   // Posisi sentral strategis untuk Macan
+          trapped: -600,    // Hukuman besar jika Macan terjebak
+          surround: -60     // Pengepungan buruk untuk Macan
+        };
+        return capturedUwong * WEIGHTS.captured +
+          macanMobility * WEIGHTS.macanMob +
+          macanJumpMobility * WEIGHTS.macanJumpMob +
+          uwongMobility * WEIGHTS.uwongMob +
+          centrality * WEIGHTS.centrality +
+          trappedMacans * WEIGHTS.trapped +
+          surrounding * WEIGHTS.surround;
+      }
+
+      static getAllPossibleMovesForHeuristic(boardState, nodeIndex) {
+        const piece = boardState[nodeIndex];
+        const moves = {
+          normalMoves: [],
+          jumpMoves: []
+        };
+
+        // Gerakan normal ke node yang berdekatan
+        moves.normalMoves = adjacencyList[nodeIndex].filter(neighbor =>
+          boardState[neighbor] === null
+        );
+
+        // Jika pion adalah Macan, cek gerakan lompat
+        if (piece === 'Macan') {
+          const directions = [
+            { dx: 100, dy: 0 },   // Kanan
+            { dx: -100, dy: 0 },  // Kiri
+            { dx: 0, dy: 100 },   // Bawah
+            { dx: 0, dy: -100 },  // Atas
+            { dx: 100, dy: 100 }, // Kanan-Bawah
+            { dx: -100, dy: -100 }, // Kiri-Atas
+            { dx: 100, dy: -100 }, // Kanan-Atas
+            { dx: -100, dy: 100 }  // Kiri-Bawah
+          ];
+
+          directions.forEach(({ dx, dy }) => {
+            let current = nodeIndex;
+            let captured = [];
+            let path = [];
+
+            // Cari path lurus
+            while (true) {
+              const index = adjacencyList[current].findIndex(neighbor => {
+                const n = nodes[neighbor];
+                const c = nodes[current];
+                return (n.x === c.x + dx && n.y === c.y + dy)
+              });
+
+              if (index == -1) break;
+              const next = adjacencyList[current][index]
+              if (boardState[next] === 'Macan') break;
+
+              // Catat Uwong yang dilompati
+              if (boardState[next] === 'Uwong') captured.push(next);
+
+              path.push(next);
+              current = next;
+
+              // Jika jumlah Uwong genap dan node tujuan kosong
+              if (captured.length > 0 && captured.length % 2 === 0 && boardState[next] === null
+                && path.length - 1 === captured.length
+              ) {
+                moves.jumpMoves.push({
+                  to: current,
+                  captured: [...captured],
+                  path: [...path]
+                });
+              }
+            }
+          });
+        }
+
+        return moves;
+      }
+
+      static minimax(boardState, depth, alpha, beta, isMaximizingPlayer, currentRole) {
+        // Base case: terminal state atau depth 0
+        if (depth === 0 || macanPositions.length === 0) {
+          return { score: this.heuristic(boardState) };
+        }
+
+        const moves = this.generateAllMoves(boardState, currentRole);
+        let bestMove = null;
+        let bestScore = isMaximizingPlayer ? -Infinity : Infinity;
+
+        for (const move of moves) {
+          // Simulasikan move
+          const newState = this.applyMove(boardState.slice(), move, currentRole);
+
+          // Rekursi
+          const result = this.minimax(
+            newState,
+            depth - 1,
+            alpha,
+            beta,
+            !isMaximizingPlayer,
+            currentRole === 'Macan' ? 'Uwong' : 'Macan'
+          );
+
+          // Update skor
+          if (isMaximizingPlayer) {
+            if (result.score > bestScore) {
+              bestScore = result.score;
+              bestMove = move;
+            }
+            alpha = Math.max(alpha, bestScore);
+          } else {
+            if (result.score < bestScore) {
+              bestScore = result.score;
+              bestMove = move;
+            }
+            beta = Math.min(beta, bestScore);
+          }
+
+          if (beta <= alpha) break; // Alpha-beta pruning
+        }
+
+        if (!bestMove) {
+          bestMove = moves[0]; // Pilih gerakan pertama sebagai default
+          bestScore = this.heuristic(boardState);
+        }
+
+        return { score: bestScore, move: bestMove };
+      }
+
+      static generateAllMoves(boardState, currentRole) {
+        const moves = [];
+
+        if (gamePhase === 'movement') {
+          // Generate semua kemungkinan gerakan
+          boardState.forEach((piece, index) => {
+            if (piece === currentRole) {
+              const possibleMoves = getAllPossibleMoves(index);
+              possibleMoves.normalMoves.forEach(move =>
+                moves.push({ type: 'move', from: index, to: move })
+              );
+              possibleMoves.jumpMoves.forEach(move =>
+                moves.push({ type: 'jump', from: index, to: move.to, captured: move.captured })
+              );
+            }
+          });
+        } else if (gamePhase.startsWith('macan_place')) {
+          // Generate semua posisi kosong untuk penempatan Macan
+          boardState.forEach((piece, index) => {
+            if (piece === null) moves.push({ type: 'place', position: index });
+          });
+        } else if (gamePhase === 'uwong_place') {
+          // Generate semua posisi kosong untuk penempatan Uwong
+          boardState.forEach((piece, index) => {
+            if (piece === null) moves.push({ type: 'place', position: index });
+          });
+        }
+
+        return moves;
+      }
+
+      static applyMove(state, move, currentRole) {
+        const newState = state.slice();
+        if (move.type === 'move') {
+          newState[move.to] = newState[move.from];
+          newState[move.from] = null;
+        } else if (move.type === 'jump') {
+          newState[move.to] = newState[move.from];
+          newState[move.from] = null;
+          move.captured.forEach(index => newState[index] = null);
+        } else if (move.type === 'place') {
+          newState[move.position] = currentRole;
+        }
+        return newState;
+      }
+    }
+
+    // Modifikasi event handler untuk AI
+    function aiMove() {
+      if (!isAITurn || (macanPositions.length === 0 && macanPiecesRemaining == 0)) return;
+
+      const currentRole = aiRole;
+      const isMaximizing = currentRole === 'Macan';
+      const depth = 5;
+
+      const bestMove = AI.getBestMove(
+        boardState,
+        depth,
+        isMaximizing,
+        currentRole
+      ).move;
+
+      if (bestMove) {
+        // Simulasikan klik untuk move AI
+        if (bestMove.type === 'place') {
+          const node = document.querySelectorAll('.node')[bestMove.position];
+          node.click();
+        } else {
+          // Seleksi piece
+          const fromNode = document.querySelectorAll('.node')[bestMove.from];
+          fromNode.click();
+
+          setTimeout(() => {
+            const toNode = document.querySelectorAll('.node')[bestMove.to];
+            toNode.click();
+          }, 500);
+        }
+      }
+
+      isAITurn = false;
+    }
+
+    function updateIndicators() {
+      turnIndicator.textContent = turn;
+      uwongPiecesIndicator.textContent = uwongPiecesRemaining;
+      macanPiecesIndicator.textContent = macanPiecesRemaining;
+
+      // Trigger AI move jika giliran AI
+      if (turn === aiRole && !isAITurn) {
+        setTimeout(() => {
+          isAITurn = true;
+          aiMove();
+        }, 1000);
+      }
+    }
+
+    function checkTrappedMacans() {
+      // Salin array untuk menghindari mutasi selama iterasi
+      const macansToCheck = [...macanPositions];
+
+      macansToCheck.forEach(macanIndex => {
+        const moves = getAllPossibleMoves(macanIndex);
+        // Jika tidak ada gerakan normal maupun lompat
+        if (moves.normalMoves.length === 0 && moves.jumpMoves.length === 0) {
+          // Hapus dari papan
+          boardState[macanIndex] = null;
+
+          // Update tampilan
+          const node = document.querySelectorAll('.node')[macanIndex];
+          node.classList.remove('node-macan', 'node-size30', 'selected');
+          node.classList.add('node-default', 'node-size20');
+
+          // Hapus dari daftar posisi Macan
+          const index = macanPositions.indexOf(macanIndex);
+          if (index > -1) {
+            macanPositions.splice(index, 1);
+          }
+        }
+      });
+    }
+
+    function checkGameEnd() {
+      if (macanPositions.length === 0) {
+        alert("Permainan berakhir! Uwong menang!");
+        location.reload();
+      }
+    }
+
+    function movePiece(from, to) {
+      if (!adjacencyList[from].includes(to)) return false;
+      if (boardState[to] !== null) return false;
+
+      const isMacan = boardState[from] === 'Macan';
+
+      // Update state papan
+      boardState[from] = null;
+      boardState[to] = isMacan ? 'Macan' : 'Uwong';
+
+      // Update tampilan
+      const fromNode = document.querySelectorAll('.node')[from];
+      const toNode = document.querySelectorAll('.node')[to];
+
+      fromNode.classList.remove(isMacan ? 'node-macan' : 'node-uwong', 'selected');
+      fromNode.classList.add('node-default');
+
+      toNode.classList.remove('node-default', 'selected');
+      toNode.classList.add(isMacan ? 'node-macan' : 'node-uwong');
+
+      // Update posisi macan
+      if (isMacan) {
+        const index = macanPositions.indexOf(from);
+        if (index > -1) macanPositions[index] = to;
+      }
+
+      return true;
+    }
+
+    function jumpPiece(from, to, uwongs) {
+      // Hapus Uwong yang dilompati
+      uwongs.forEach(i => {
+        boardState[i] = null;
+        const node = document.querySelectorAll('.node')[i];
+        node.classList.remove('node-uwong');
+        node.classList.add('node-default');
+      });
+
+      // Pindahkan Macan secara manual
+      const fromNode = document.querySelectorAll('.node')[from];
+      const toNode = document.querySelectorAll('.node')[to];
+
+      // Update state
+      boardState[from] = null;
+      boardState[to] = 'Macan';
+
+      // Update tampilan
+      fromNode.classList.remove('node-macan', 'node-size30', 'selected');
+      fromNode.classList.add('node-default', 'node-size20');
+
+      toNode.classList.remove('node-default', 'node-size20');
+      toNode.classList.add('node-macan', 'node-size30');
+
+      // Update posisi Macan
+      const macanIndex = macanPositions.indexOf(from);
+      if (macanIndex > -1) {
+        macanPositions[macanIndex] = to;
+      }
+    }
+
+    function tryMacanJump(from, to, withaction = true) {
+      if (boardState[to] !== null) {
+        alert('Lokasi tujuan sudah terisi!');
+        return false;
+      }
+
+      const dx = nodes[to].x - nodes[from].x;
+      const dy = nodes[to].y - nodes[from].y;
+      const stepX = dx === 0 ? 0 : dx / Math.abs(dx);
+      const stepY = dy === 0 ? 0 : dy / Math.abs(dy);
+
+      let current = from;
+      let captured = [];
+      let path = [];
+
+      // Cari path lurus
+      while (true) {
+        let index = adjacencyList[current].findIndex(neighbor => {
+          const n = nodes[neighbor];
+          const c = nodes[current];
+          return (n.x === c.x + stepX * 100 && n.y === c.y + stepY * 100);
+        });
+
+        if (index == -1) break;
+        const next = adjacencyList[current][index]
+        if (boardState[next] === 'Macan') break;
+
+        // Catat Uwong yang dilompati
+        if (boardState[next] === 'Uwong') captured.push(next);
+        path.push(next);
+        current = next;
+
+        // Jika jumlah Uwong genap dan node tujuan kosong
+        if (captured.length > 0 && captured.length % 2 === 0 && boardState[next] === null
+          && path.length - 1 === captured.length
+        ) {
+          if (withaction) {
+            jumpPiece(from, next, captured);
+          }
+
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    // Gambar garis koneksi
+    connections.forEach(([from, to]) => {
+      const fromPos = nodes[from];
+      const toPos = nodes[to];
+      const length = Math.sqrt(Math.pow(toPos.x - fromPos.x, 2) + Math.pow(toPos.y - fromPos.y, 2));
+      const angle = Math.atan2(toPos.y - fromPos.y, toPos.x - fromPos.x);
+      const line = document.createElement('div');
+      line.className = 'line';
+      line.style.width = length + 'px';
+      line.style.left = fromPos.x + 'px';
+      line.style.top = fromPos.y + 'px';
+      line.style.transform = `rotate(${angle}rad)`;
+      network.appendChild(line);
+    });
+
+    // Buat node
+    nodes.forEach((pos, i) => {
+      const node = document.createElement('div');
+      node.className = 'node node-default node-size20';
+      node.style.left = pos.x + 'px';
+      node.style.top = pos.y + 'px';
+
+      node.onclick = () => {
+        // Fase penempatan Macan
+        if (gamePhase.startsWith('macan_place')) {
+          if (turn === 'Macan' && boardState[i] === null) {
+            // Penempatan pion Macan
+            boardState[i] = 'Macan';
+            macanPositions.push(i);
+            node.classList.remove('node-default');
+            node.classList.add('node-macan', 'node-size30');
+
+            // Update fase permainan
+            if (gamePhase === 'macan_place') {
+              gamePhase = 'uwong_place';
+              turn = 'Uwong';
+              macanPiecesRemaining--;
+            } else {
+              gamePhase = 'movement'; // Langsung ke fase pergerakan setelah Macan selesai
+              turn = 'Uwong';
+            }
+            updateIndicators();
+          }
+        }
+        // Fase penempatan Uwong
+        else if (gamePhase === 'uwong_place') {
+          if (turn === 'Uwong' && boardState[i] === null) {
+            boardState[i] = 'Uwong';
+            uwongPiecesRemaining--;
+            node.classList.remove('node-default');
+            node.classList.add('node-uwong', 'node-size20');
+
+            // Setelah Uwong menempatkan, giliran Macan bergerak
+            if (macanPiecesRemaining > 0) {
+              gamePhase = 'macan_place';
+              turn = 'Macan';
+            } else {
+              gamePhase = 'movement';
+              turn = 'Macan';
+            }
+
+            // Setelah menempatkan Uwong, periksa Macan yang terkepung
+            checkTrappedMacans();
+            checkGameEnd();
+
+            updateIndicators();
+          }
+        }
+        // Fase pergerakan
+        else if (gamePhase === 'movement') {
+          if (selectedPiece === null) {
+            // Seleksi pion
+            if (boardState[i] === turn) {
+              selectedPiece = i;
+              highlightMoves(i);
+              node.classList.add('selected');
+            }
+          } else {
+            // Gerakkan pion
+            const success = turn === 'Macan' ?
+              (adjacencyList[selectedPiece].includes(i) ?
+                movePiece(selectedPiece, i) :
+                tryMacanJump(selectedPiece, i)) :
+              movePiece(selectedPiece, i);
+
+            if (success) {
+              // Update giliran
+              turn = turn === 'Macan' ? 'Uwong' : 'Macan';
+
+              // Periksa Macan yang terkepung
+              checkTrappedMacans();
+              checkGameEnd();
+
+              // Kembali ke fase penempatan jika Uwong masih punya pion
+              if (uwongPiecesRemaining > 0) {
+                gamePhase = 'uwong_place';
+              }
+            }
+
+            // Reset seleksi
+            document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+            selectedPiece = null;
+            updateIndicators();
+          }
+        }
+
+      };
+      network.appendChild(node);
+    });
+
+    function getAllPossibleMoves(nodeIndex) {
+      const piece = boardState[nodeIndex];
+      const moves = {
+        normalMoves: [],
+        jumpMoves: []
+      };
+
+      // Gerakan normal ke node yang berdekatan
+      moves.normalMoves = adjacencyList[nodeIndex].filter(neighbor =>
+        boardState[neighbor] === null
+      );
+
+      // Jika pion adalah Macan, cek gerakan lompat
+      if (piece === 'Macan') {
+        const directions = [
+          { dx: 100, dy: 0 },   // Kanan
+          { dx: -100, dy: 0 },  // Kiri
+          { dx: 0, dy: 100 },   // Bawah
+          { dx: 0, dy: -100 },  // Atas
+          { dx: 100, dy: 100 }, // Kanan-Bawah
+          { dx: -100, dy: -100 }, // Kiri-Atas
+          { dx: 100, dy: -100 }, // Kanan-Atas
+          { dx: -100, dy: 100 }  // Kiri-Bawah
+        ];
+
+        directions.forEach(({ dx, dy }) => {
+          let current = nodeIndex;
+          let captured = [];
+          let path = [];
+
+          // Cari path lurus
+          while (true) {
+            const index = adjacencyList[current].findIndex(neighbor => {
+              const n = nodes[neighbor];
+              const c = nodes[current];
+              return (n.x === c.x + dx && n.y === c.y + dy)
+            });
+
+            if (index == -1) break;
+            const next = adjacencyList[current][index]
+            if (boardState[next] === 'Macan') break;
+
+            // Catat Uwong yang dilompati
+            if (boardState[next] === 'Uwong') captured.push(next);
+
+            path.push(next);
+            current = next;
+
+            // Jika jumlah Uwong genap dan node tujuan kosong
+            if (captured.length > 0 && captured.length % 2 === 0 && boardState[next] === null
+              && path.length - 1 === captured.length
+            ) {
+              moves.jumpMoves.push({
+                to: current,
+                captured: [...captured],
+                path: [...path]
+              });
+            }
+          }
+        });
+      }
+
+      return moves;
+    }
+    function highlightMoves(nodeIndex) {
+      const moves = getAllPossibleMoves(nodeIndex);
+      // Reset semua highlight
+      document.querySelectorAll('.node').forEach(node => {
+        node.classList.remove('highlight-normal', 'highlight-jump');
+      });
+
+      // Highlight gerakan normal
+      moves.normalMoves.forEach(index => {
+        document.querySelectorAll('.node')[index].classList.add('highlight-normal');
+      });
+
+      // Highlight gerakan lompat
+      moves.jumpMoves.forEach(move => {
+        document.querySelectorAll('.node')[move.to].classList.add('highlight-jump');
+      });
+    }
+    updateIndicators();
+  </script>
+</body>
+
+</html>

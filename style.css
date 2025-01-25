@@ -241,6 +241,10 @@ body {
   color: #e74c3c;
   background: rgba(231, 76, 60, 0.1);
 }
+.uwong-turn {
+  color: #3cc8e7;
+  background: rgba(231, 76, 60, 0.1);
+}
 
 .fa-users {
   color: #4a90e2;

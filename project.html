@@ -59,12 +59,12 @@
       </div>
       <div class="status-item">
         <i class="fas fa-shield-alt"></i>
-        <span class="status-label">Uwong</span>
+        <span class="status-label">Remain Placing Uwong</span>
         <span id="uwong-pieces" class="status-value">8</span>
       </div>
       <div class="status-item">
         <i class="fas fa-paw"></i>
-        <span class="status-label">Macan</span>
+        <span class="status-label">Remain Placing Macan</span>
         <span id="macan-pieces" class="status-value">0</span>
       </div>
     </div>
@@ -272,7 +272,7 @@
           captured: -20,    // Nilai tinggi untuk setiap Uwong yang terdapat pada map
           capturedMcn: 100, // Nilai tinggi untuk setiap Macan yang terdapat pada map
           macanMob: 75,     // Mobilitas Macan penting untuk serangan
-          macanJumpMob: 200, // Mobilitas Macan penting untuk serangan
+          macanJumpMob: 150, // Mobilitas Macan penting untuk serangan
           uwongMob: -5,    // Mobilitas Uwong perlu dibatasi
           centrality: 60,   // Posisi sentral strategis untuk Macan
           trapped: -9999,    // Hukuman besar jika Macan terjebak
@@ -355,7 +355,7 @@
 
       static minimax(boardState, depth, alpha, beta, isMaximizingPlayer, currentRole) {
         // Base case: terminal state atau depth 0
-        if (depth === 0 || macanPositions.length === 0) {
+        if (depth === 0 || macanPositions.length === 0 ) {
           return { score: this.heuristic(boardState) };
         }
 
@@ -486,7 +486,9 @@
     }
 
     function updateIndicators() {
-      turnIndicator.textContent = turn;
+      turnIndicator.textContent = `${turn}-${aiRole == turn ? "AI" : "User"}`;
+      turnIndicator.className = '';
+      turnIndicator.className = `status-value ${turn.toLowerCase()}-turn`;
       uwongPiecesIndicator.textContent = uwongPiecesRemaining;
       macanPiecesIndicator.textContent = macanPiecesRemaining;
 

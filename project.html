@@ -50,7 +50,7 @@
         </div>
       </div>
     </div>
-  
+
     <div class="game-status">
       <div class="status-item">
         <i class="fas fa-clock"></i>
@@ -69,7 +69,7 @@
       </div>
     </div>
   </div>
-  
+
   <div class="network" id="network"></div>
   <script>
     const network = document.getElementById('network');
@@ -209,11 +209,24 @@
         const capturedUwong = uwongCount;
 
         // 2. Mobilitas Macan
-        let macanMobility = macanPositions.reduce((sum, index) => {
-          const moves = this.getAllPossibleMovesForHeuristic(boardState, index);
-          return sum + (moves.normalMoves.length * 1) + (moves.jumpMoves.length * 1);
-        }, 0);
 
+        // let macanMobility =
+        //   macanPositions.reduce((sum, index) => {
+        //     const moves = this.getAllPossibleMovesForHeuristic(boardState, index);
+        //     return sum + (moves.normalMoves.length * 1) + (moves.jumpMoves.length * 1);
+        //   }, 0);
+
+        // macan mobility minimum
+        let macanMobility = 8;
+        macanPositions.forEach(index => {
+          const moves = this.getAllPossibleMovesForHeuristic(boardState, index);
+          const totalMoves = moves.normalMoves.length + moves.jumpMoves.length;
+          if (totalMoves < macanMobility) {
+            macanMobility = totalMoves;
+          }
+        });
+
+        // macan avg jump mobility
         let macanJumpMobility = macanPositions.reduce((sum, index) => {
           const moves = this.getAllPossibleMovesForHeuristic(boardState, index);
           moves.jumpMoves.forEach(move => {
@@ -221,6 +234,10 @@
           })
           return sum;
         }, 0)
+        macanJumpMobility = macanJumpMobility / (macanPositions.reduce((sum, index) => {
+          const moves = this.getAllPossibleMovesForHeuristic(boardState, index);
+          return sum + moves.jumpMoves.length;
+        }, 0) || 1);
 
         // 3. Mobilitas Uwong
         let uwongMobility = boardState.reduce((sum, piece, index) => {
@@ -236,7 +253,7 @@
           const node = nodes[index];
           const dx = node.x - center.x;
           const dy = node.y - center.y;
-          return sum + 1/(Math.sqrt(dx * dx + dy * dy) + 1);
+          return sum + 1 / (Math.sqrt(dx * dx + dy * dy) + 1);
         }, 0);
 
         // 5. Macan yang terjebak
@@ -254,14 +271,14 @@
         const WEIGHTS = {
           captured: -20,    // Nilai tinggi untuk setiap Uwong yang terdapat pada map
           capturedMcn: 100, // Nilai tinggi untuk setiap Macan yang terdapat pada map
-          macanMob: 150,     // Mobilitas Macan penting untuk serangan
-          macanJumpMob: 500, // Mobilitas Macan penting untuk serangan
+          macanMob: 75,     // Mobilitas Macan penting untuk serangan
+          macanJumpMob: 200, // Mobilitas Macan penting untuk serangan
           uwongMob: -5,    // Mobilitas Uwong perlu dibatasi
           centrality: 60,   // Posisi sentral strategis untuk Macan
           trapped: -9999,    // Hukuman besar jika Macan terjebak
           surround: -200     // Pengepungan buruk untuk Macan
         };
-        return capturedUwong * WEIGHTS.captured +
+        return (capturedUwong == 0 ? 9999 : capturedUwong * WEIGHTS.captured) +
           capturedMacan * WEIGHTS.capturedMcn +
           macanMobility * WEIGHTS.macanMob +
           macanJumpMobility * WEIGHTS.macanJumpMob +

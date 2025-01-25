@@ -204,19 +204,20 @@
         let uwongCount = boardState.filter(p => p === 'Uwong').length;
         let macanPositions = boardState.reduce((acc, p, i) => p === 'Macan' ? [...acc, i] : acc, []);
 
-        // 1. Perbedaan pion yang tertangkap
+        // 1. jumlah pion uwong di papan permainan
+        const capturedMacan = macanPositions.length;
         const capturedUwong = uwongCount;
 
         // 2. Mobilitas Macan
         let macanMobility = macanPositions.reduce((sum, index) => {
           const moves = this.getAllPossibleMovesForHeuristic(boardState, index);
-          return sum + (moves.normalMoves.length * 10) + (moves.jumpMoves.length * 10);
+          return sum + (moves.normalMoves.length * 1) + (moves.jumpMoves.length * 1);
         }, 0);
 
         let macanJumpMobility = macanPositions.reduce((sum, index) => {
           const moves = this.getAllPossibleMovesForHeuristic(boardState, index);
           moves.jumpMoves.forEach(move => {
-            sum += move.path.length * 5
+            sum += move.path.length
           })
           return sum;
         }, 0)
@@ -235,7 +236,7 @@
           const node = nodes[index];
           const dx = node.x - center.x;
           const dy = node.y - center.y;
-          return sum + 1 / (Math.sqrt(dx * dx + dy * dy) + 1);
+          return sum + 1/(Math.sqrt(dx * dx + dy * dy) + 1);
         }, 0);
 
         // 5. Macan yang terjebak
@@ -251,15 +252,17 @@
 
         // Bobot heuristik (dapat disesuaikan)
         const WEIGHTS = {
-          captured: -150,    // Nilai tinggi untuk setiap Uwong yang tertangkap
-          macanMob: 100,     // Mobilitas Macan penting untuk serangan
-          macanJumpMob: 300, // Mobilitas Macan penting untuk serangan
-          uwongMob: -10,    // Mobilitas Uwong perlu dibatasi
-          centrality: 30,   // Posisi sentral strategis untuk Macan
-          trapped: -600,    // Hukuman besar jika Macan terjebak
-          surround: -60     // Pengepungan buruk untuk Macan
+          captured: -20,    // Nilai tinggi untuk setiap Uwong yang terdapat pada map
+          capturedMcn: 100, // Nilai tinggi untuk setiap Macan yang terdapat pada map
+          macanMob: 150,     // Mobilitas Macan penting untuk serangan
+          macanJumpMob: 500, // Mobilitas Macan penting untuk serangan
+          uwongMob: -5,    // Mobilitas Uwong perlu dibatasi
+          centrality: 60,   // Posisi sentral strategis untuk Macan
+          trapped: -9999,    // Hukuman besar jika Macan terjebak
+          surround: -200     // Pengepungan buruk untuk Macan
         };
         return capturedUwong * WEIGHTS.captured +
+          capturedMacan * WEIGHTS.capturedMcn +
           macanMobility * WEIGHTS.macanMob +
           macanJumpMobility * WEIGHTS.macanJumpMob +
           uwongMobility * WEIGHTS.uwongMob +
